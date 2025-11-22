@@ -137,8 +137,13 @@ else
         autoconf \
         automake \
         libtool \
-        "linux-headers-$(uname -r)" \
         build-essential
+    
+    # Try to install kernel headers, fallback to generic if specific version not available
+    if ! $PKG_INSTALL "linux-headers-$(uname -r)"; then
+        log_warn "Specific kernel headers not available, installing generic headers"
+        $PKG_INSTALL linux-headers-generic || true
+    fi
 fi
 
 ###############################################################################
@@ -378,10 +383,18 @@ fi
 log_info "Installing MongoDB..."
 
 if [ "$PKG_MANAGER" = "dnf" ]; then
-    cat > /etc/yum.repos.d/mongodb-org-7.0.repo <<'EOF'
+    # Determine the RHEL major version
+    if [ -n "${VERSION_ID:-}" ]; then
+        RHEL_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
+    else
+        # Default to 9 if version cannot be determined
+        RHEL_VERSION="9"
+    fi
+    
+    cat > /etc/yum.repos.d/mongodb-org-7.0.repo <<EOF
 [mongodb-org-7.0]
 name=MongoDB Repository
-baseurl=https://repo.mongodb.org/yum/redhat/9/mongodb-org/7.0/x86_64/
+baseurl=https://repo.mongodb.org/yum/redhat/${RHEL_VERSION}/mongodb-org/7.0/x86_64/
 gpgcheck=1
 enabled=1
 gpgkey=https://www.mongodb.org/static/pgp/server-7.0.asc
@@ -467,7 +480,18 @@ log_info "Installing Terraform..."
 
 if [ "$PKG_MANAGER" = "dnf" ]; then
     $PKG_INSTALL dnf-plugins-core
-    $PKG_CONFIG_MANAGER --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
+    
+    # Determine the correct repository URL based on distribution
+    case "$DISTRO" in
+        fedora)
+            HASHICORP_REPO_URL="https://rpm.releases.hashicorp.com/fedora/hashicorp.repo"
+            ;;
+        centos|rhel|rocky|almalinux)
+            HASHICORP_REPO_URL="https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo"
+            ;;
+    esac
+    
+    $PKG_CONFIG_MANAGER --add-repo "$HASHICORP_REPO_URL"
     $PKG_INSTALL terraform
 else
     # Debian/Ubuntu
