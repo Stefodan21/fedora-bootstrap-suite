@@ -216,7 +216,18 @@ log_info "Installing Docker..."
 
 if [ "$PKG_MANAGER" = "dnf" ]; then
     $PKG_INSTALL dnf-plugins-core
-    $PKG_CONFIG_MANAGER --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+    
+    # Determine the correct repository URL based on distribution
+    case "$DISTRO" in
+        fedora)
+            DOCKER_REPO_URL="https://download.docker.com/linux/fedora/docker-ce.repo"
+            ;;
+        centos|rhel|rocky|almalinux)
+            DOCKER_REPO_URL="https://download.docker.com/linux/centos/docker-ce.repo"
+            ;;
+    esac
+    
+    $PKG_CONFIG_MANAGER --add-repo "$DOCKER_REPO_URL"
     $PKG_INSTALL \
         docker-ce \
         docker-ce-cli \
@@ -232,10 +243,24 @@ else
         lsb-release
     
     mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    
+    # Determine the correct Docker repository base URL
+    case "$DISTRO" in
+        ubuntu|pop|linuxmint)
+            DOCKER_DISTRO="ubuntu"
+            ;;
+        debian)
+            DOCKER_DISTRO="debian"
+            ;;
+        *)
+            DOCKER_DISTRO="ubuntu"
+            ;;
+    esac
+    
+    curl -fsSL "https://download.docker.com/linux/${DOCKER_DISTRO}/gpg" | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     
     echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${DOCKER_DISTRO} \
       $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     
     apt-get update
@@ -367,8 +392,34 @@ else
     curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
         gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg
     
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | \
-        tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+    # Determine the correct release codename
+    case "$DISTRO" in
+        ubuntu|pop|linuxmint)
+            # Use Ubuntu repository - detect the release
+            RELEASE_CODENAME=$(lsb_release -cs)
+            # Map older/newer releases to supported MongoDB releases
+            case "$RELEASE_CODENAME" in
+                noble|mantic|lunar)
+                    MONGO_RELEASE="jammy"
+                    ;;
+                jammy|focal)
+                    MONGO_RELEASE="$RELEASE_CODENAME"
+                    ;;
+                *)
+                    # Default to jammy for unknown Ubuntu releases
+                    MONGO_RELEASE="jammy"
+                    ;;
+            esac
+            echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu ${MONGO_RELEASE}/mongodb-org/7.0 multiverse" | \
+                tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+            ;;
+        debian)
+            # Use Debian repository
+            RELEASE_CODENAME=$(lsb_release -cs)
+            echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/debian ${RELEASE_CODENAME}/mongodb-org/7.0 main" | \
+                tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+            ;;
+    esac
     
     apt-get update
     $PKG_INSTALL mongodb-org
