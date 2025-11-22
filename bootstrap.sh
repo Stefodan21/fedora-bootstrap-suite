@@ -230,6 +230,10 @@ if [ "$PKG_MANAGER" = "dnf" ]; then
         centos|rhel|rocky|almalinux)
             DOCKER_REPO_URL="https://download.docker.com/linux/centos/docker-ce.repo"
             ;;
+        *)
+            # Default to CentOS repo for other RHEL-based distributions
+            DOCKER_REPO_URL="https://download.docker.com/linux/centos/docker-ce.repo"
+            ;;
     esac
     
     $PKG_CONFIG_MANAGER --add-repo "$DOCKER_REPO_URL"
@@ -489,6 +493,10 @@ if [ "$PKG_MANAGER" = "dnf" ]; then
         centos|rhel|rocky|almalinux)
             HASHICORP_REPO_URL="https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo"
             ;;
+        *)
+            # Default to RHEL repo for other RHEL-based distributions
+            HASHICORP_REPO_URL="https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo"
+            ;;
     esac
     
     $PKG_CONFIG_MANAGER --add-repo "$HASHICORP_REPO_URL"
@@ -556,6 +564,7 @@ mv "kafka_${SCALA_VERSION}-${KAFKA_VERSION}" "${KAFKA_DIR}"
 rm -f "kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz"
 
 # Create Kafka systemd service file
+# NOTE: For production use, create a dedicated 'kafka' user instead of running as root
 cat > /etc/systemd/system/zookeeper.service <<'EOF'
 [Unit]
 Description=Apache Zookeeper Server
