@@ -15,6 +15,11 @@
 set -e  # Exit on error
 set -u  # Exit on undefined variable
 
+# Version variables (modify here to update versions)
+KAFKA_VERSION="3.6.0"
+SCALA_VERSION="2.13"
+KUBERNETES_VERSION="v1.28"
+
 # Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -142,13 +147,13 @@ rm -rf /tmp/awscliv2.zip /tmp/aws
 # 9. Install kubectl
 ###############################################################################
 log_info "Installing kubectl..."
-cat > /etc/yum.repos.d/kubernetes.repo <<'EOF'
+cat > /etc/yum.repos.d/kubernetes.repo <<EOF
 [kubernetes]
 name=Kubernetes
-baseurl=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/
+baseurl=https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/rpm/
 enabled=1
 gpgcheck=1
-gpgkey=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/repodata/repomd.xml.key
+gpgkey=https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/rpm/repodata/repomd.xml.key
 EOF
 dnf install -y kubectl
 
@@ -250,8 +255,6 @@ log_info "Installing Java (required for Kafka)..."
 dnf install -y java-17-openjdk-devel
 
 log_info "Downloading and installing Apache Kafka..."
-KAFKA_VERSION="3.6.0"
-SCALA_VERSION="2.13"
 KAFKA_DIR="/opt/kafka"
 
 cd /tmp
@@ -340,7 +343,7 @@ log_info "  - yarn: $(yarn --version 2>/dev/null || echo 'N/A')"
 log_info "  - TypeScript: $(tsc --version 2>/dev/null || echo 'N/A')"
 log_info "  - Python: $(python3 --version 2>/dev/null || echo 'N/A')"
 log_info "  - Docker: $(docker --version 2>/dev/null || echo 'N/A')"
-log_info "  - kubectl: $(kubectl version --client --short 2>/dev/null || echo 'N/A')"
+log_info "  - kubectl: $(kubectl version --client 2>/dev/null | head -n1 || echo 'N/A')"
 log_info "  - Terraform: $(terraform --version 2>/dev/null | head -n1 || echo 'N/A')"
 log_info ""
 log_info "================================================"
