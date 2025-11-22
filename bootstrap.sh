@@ -137,7 +137,7 @@ else
         autoconf \
         automake \
         libtool \
-        linux-headers-$(uname -r) \
+        "linux-headers-$(uname -r)" \
         build-essential
 fi
 
